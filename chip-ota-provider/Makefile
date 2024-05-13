@@ -4,7 +4,6 @@ PKG_NAME:=chip-ota-provider
 PKG_RELEASE:=1
 PKG_LICENSE:=Apache-2.0
 PKG_LICENSE_FILES:=LICENSE
-LOCAL_SOURCE_DIR:=$(abspath $(realpath $(dir $(lastword $(MAKEFILE_LIST))))/../../../third_party/connectedhomeip)
 
 PKG_BUILD_PARALLEL:=1
 PKG_BUILD_DEPENDS:=gn/host
@@ -33,7 +32,7 @@ endef
 
 define Build/Configure
 	mkdir -p $(CHIP_OTA_PROVIDER_OUT_DIR) && cd $(CHIP_OTA_PROVIDER_OUT_DIR) && \
-		$(CONFIGURE_VARS) $(LOCAL_SOURCE_DIR)/scripts/configure \
+		$(CONFIGURE_VARS) $(PKG_BUILD_DIR)/scripts/configure \
 			--build-env-dir="$(CHIP_BUILD_ENV_DIR)" \
 			--project=examples/ota-provider-app/linux \
 			--target=$(GNU_TARGET_NAME) \
