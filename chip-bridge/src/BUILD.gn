@@ -1,0 +1,56 @@
+# Copyright (c) 2021 Project CHIP Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//build_overrides/chip.gni")
+
+import("${chip_root}/build/chip/tools.gni")
+
+assert(chip_build_tools)
+
+executable("chip-bridge-app") {
+  cflags = [ "-Wconversion" ]
+  include_dirs = ["bridge/include" ]
+  sources = [
+    "${chip_root}/examples/tv-app/tv-common/include/CHIPProjectAppConfig.h",
+    "main.cpp",
+    "bridge/ApplicationCluster.cpp",
+    "bridge/bridged-actions-stub.cpp",
+    "bridge/DeviceLibrary.cpp",
+    "bridge/ClusterBase.cpp",
+    "bridge/Bridged.cpp",
+  ]
+
+  include_dirs += [ "./bridged_platfrom/virtual_device" ]
+  sources += [
+    "bridged_platfrom/virtual_device/platfrom/Device.cpp",
+    "bridged_platfrom/virtual_device/platfrom/Device.h",
+    "bridged_platfrom/virtual_device/platfrom/cli_interface.cpp",
+    "bridged_platfrom/virtual_device/platfrom/cli.c",
+    "bridged_platfrom/virtual_device/platfrom/cli.h",
+    "bridged_platfrom/virtual_device/ExampleBridgedImp.cpp",
+    "bridged_platfrom/virtual_device/ExampleBridgedImp.h",
+  ]
+
+  deps = [
+    "${chip_root}/examples/bridge-app/bridge-common",
+    "${chip_root}/examples/platform/linux:app-main",
+    "${chip_root}/src/lib",
+  ]
+
+  output_dir = root_out_dir
+}
+
+group("linux") {
+  deps = [ ":chip-bridge-app" ]
+}
