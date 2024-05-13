@@ -2,6 +2,28 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=chip-tool
 PKG_RELEASE:=1
+
+PKG_SOURCE_URL:=https://github.com/project-chip/connectedhomeip.git
+PKG_SOURCE_PROTO:=git
+PKG_SOURCE_MIRROR:=0 # don't try OpenWrt mirror
+PKG_SOURCE_SUBMODULES:= \
+  third_party/pigweed \
+  third_party/jsoncpp \
+  third_party/nlassert \
+  third_party/editline \
+  third_party/nlunit-test \
+  third_party/nlio \
+  third_party/perfetto \
+  third_party/libwebsockets
+
+PKG_SOURCE_DATE:=2023-10-28
+PKG_SOURCE_VERSION:=181b0cb14ff007ec912f2ba6627e05dfb066c008
+
+# https://github.com/project-chip/matter-openwrt/issues/2
+ifeq ($(DUMP)$(filter SUBMODULES:=,$(Download/Defaults)),)
+$(error PKG_SOURCE_SUBMODULES is not supported, ensure https://github.com/openwrt/openwrt/pull/13000 is included in your OpenWrt buildroot)
+endif
+
 PKG_LICENSE:=Apache-2.0
 PKG_LICENSE_FILES:=LICENSE
 
