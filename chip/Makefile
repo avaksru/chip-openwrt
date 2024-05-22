@@ -18,7 +18,7 @@ PKG_SOURCE_SUBMODULES:= \
 
 PKG_SOURCE_DATE:=2023-10-28
 PKG_SOURCE_VERSION:=181b0cb14ff007ec912f2ba6627e05dfb066c008
-PKG_MIRROR_HASH:=10fd05c033def303ee2d9acd14ab2920c4560e17fa94875fe899fb12d508266c
+PKG_MIRROR_HASH:=7fd760260e55b770b984021acacb442c655b412d045ebaf43e211b6b1889eb5c
 PKG_LICENSE:=Apache-2.0
 PKG_LICENSE_FILES:=LICENSE
 PKG_BUILD_PARALLEL:=1
@@ -31,9 +31,9 @@ TARGET_CFLAGS += -DFATCONFDIR=\"/root\" -DSYSCONFDIR=\"/root\" -DLOCALSTATEDIR=\
 
 # The build environment contains host tools that can be shared between targets
 CHIP_BUILD_ENV_DIR:=$(STAGING_DIR_HOST)/share/chip-build-env
-CHIP_BRIDGE_OUT_DIR:=$(PKG_BUILD_DIR)/chip-bidge
-CHIP_TOOL_OUT_DIR:=$(PKG_BUILD_DIR)/chip-tool
-CHIP_OTA_PROVIDER_OUT_DIR:=$(PKG_BUILD_DIR)/chip-ota-provider
+CHIP_BRIDGE_OUT_DIR:=$(PKG_BUILD_DIR)/out/chip-bidge
+CHIP_TOOL_OUT_DIR:=$(PKG_BUILD_DIR)/out/chip-tool
+CHIP_OTA_PROVIDER_OUT_DIR:=$(PKG_BUILD_DIR)/out/chip-ota-provider
 
 # https://github.com/project-chip/matter-openwrt/issues/2
 ifeq ($(DUMP)$(filter SUBMODULES:=,$(Download/Defaults)),)
@@ -68,8 +68,13 @@ define Build/Configure
 			echo "Configuring OTA Provider"; \
 			cd $(CHIP_OTA_PROVIDER_OUT_DIR) && \
 			$(CONFIGURE_VARS) $(PKG_BUILD_DIR)/scripts/configure --build-env-dir="$(CHIP_BUILD_ENV_DIR)" \
-				--project=examples/ota-provider-app/linux --target=$(GNU_TARGET_NAME) --enable-network-layer-ble=no \
-				--enable-openthread=no --enable-wifi=no --mdns='platform' --enable-tracing-support=no; \
+				--project=examples/ota-provider-app/linux \
+				--target=$(GNU_TARGET_NAME) \
+				--enable-network-layer-ble=no \
+				--enable-openthread=no \
+				--enable-wifi=no \
+				--mdns='platform' \
+				--enable-tracing-support=no; \
 		else echo "Configuring OTA Provider no update"; fi \
 	else echo "Configuring OTA Provider is disable"; fi
 
@@ -77,9 +82,15 @@ define Build/Configure
 		if [ ! -f $(CHIP_BRIDGE_OUT_DIR)/build.ninja ]; then \
 			echo "Configuring Bridge"; \
 			cd $(CHIP_BRIDGE_OUT_DIR) && \
-			$(CONFIGURE_VARS) $(PKG_BUILD_DIR)/scripts/configure --build-env-dir="$(CHIP_BUILD_ENV_DIR)" \
-				--project=examples/bridge-app/rafael --target=$(GNU_TARGET_NAME) --enable-network-layer-ble=no \
-				--enable-openthread=no --enable-wifi=no --mdns='platform' --enable-tracing-support=no; \
+			$(CONFIGURE_VARS) $(PKG_BUILD_DIR)/scripts/configure \
+				--build-env-dir="$(CHIP_BUILD_ENV_DIR)" \
+				--project=examples/bridge-app/linux \
+				--target=$(GNU_TARGET_NAME) \
+				--enable-network-layer-ble=no \
+				--enable-openthread=no \
+				--enable-wifi=no \
+				--mdns='platform' \
+				--enable-tracing-support=no; \
 		else echo "Configuring Bridge no update"; fi \
 	else echo "Configuring Bridge is disable"; fi
 
@@ -87,8 +98,11 @@ define Build/Configure
 		if [ ! -f $(CHIP_TOOL_OUT_DIR)/build.ninja ]; then \
 			echo "Configuring Chip Tool"; \
 			cd $(CHIP_TOOL_OUT_DIR) && \
-			$(CONFIGURE_VARS) $(PKG_BUILD_DIR)/scripts/configure --build-env-dir="$(CHIP_BUILD_ENV_DIR)" \
-				--project=examples/chip-tool  --target=$(GNU_TARGET_NAME) --enable-tracing-support=no; \
+			$(CONFIGURE_VARS) $(PKG_BUILD_DIR)/scripts/configure \
+				--build-env-dir="$(CHIP_BUILD_ENV_DIR)" \
+				--project=examples/chip-tool \
+				--target=$(GNU_TARGET_NAME) \
+				--enable-tracing-support=no; \
 		else echo "Configuring Chip Tool no update"; fi \
 	else echo "Configuring Chip Tool is disable"; fi
 endef
