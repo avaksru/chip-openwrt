@@ -1,0 +1,35 @@
+Submodule third_party/perfetto/repo contains modified content
+diff --git a/third_party/perfetto/repo/sdk/perfetto.cc b/third_party/perfetto/repo/sdk/perfetto.cc
+index d841596b9..7a25b8ffb 100644
+--- a/third_party/perfetto/repo/sdk/perfetto.cc
++++ b/third_party/perfetto/repo/sdk/perfetto.cc
+@@ -7324,27 +7324,11 @@ namespace base {
+ // Sets the "comm" of the calling thread to the first 15 chars of the given
+ // string.
+ inline bool MaybeSetThreadName(const std::string& name) {
+-  char buf[16] = {};
+-  StringCopy(buf, name.c_str(), sizeof(buf));
+-
+-#if PERFETTO_BUILDFLAG(PERFETTO_OS_APPLE)
+-  return pthread_setname_np(buf) == 0;
+-#else
+-  return pthread_setname_np(pthread_self(), buf) == 0;
+-#endif
++  return false;
+ }
+ 
+ inline bool GetThreadName(std::string& out_result) {
+-  char buf[16] = {};
+-#if PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID)
+-  if (prctl(PR_GET_NAME, buf) != 0)
+-    return false;
+-#else
+-  if (pthread_getname_np(pthread_self(), buf, sizeof(buf)) != 0)
+-    return false;
+-#endif
+-  out_result = std::string(buf);
+-  return true;
++  return false;
+ }
+ 
+ #else
