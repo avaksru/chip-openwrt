@@ -40,8 +40,6 @@ ifeq ($(DUMP)$(filter SUBMODULES:=,$(Download/Defaults)),)
 $(error PKG_SOURCE_SUBMODULES is not supported, ensure https://github.com/openwrt/openwrt/pull/13000 is included in your OpenWrt buildroot)
 endif
 
-CHIP_BRIDGE_SOURCE_DIR:=$(abspath $(realpath $(dir $(lastword $(MAKEFILE_LIST))))/../../package/project-chip/chip/chip-bridge/src)
-
 define Package/chip
 	SECTION:=net
 	CATEGORY:=Network
@@ -69,7 +67,7 @@ define Build/Configure
 		if [ ! -f $(CHIP_OTA_PROVIDER_OUT_DIR)/build.ninja ]; then \
 			echo "Configuring OTA Provider"; \
 			cd $(CHIP_OTA_PROVIDER_OUT_DIR) && \
-			$(CONFIGURE_VARS) $(LOCAL_SOURCE_DIR)/scripts/configure --build-env-dir="$(CHIP_BUILD_ENV_DIR)" \
+			$(CONFIGURE_VARS) $(PKG_BUILD_DIR)/scripts/configure --build-env-dir="$(CHIP_BUILD_ENV_DIR)" \
 				--project=examples/ota-provider-app/linux --target=$(GNU_TARGET_NAME) --enable-network-layer-ble=no \
 				--enable-openthread=no --enable-wifi=no --mdns='platform' --enable-tracing-support=no; \
 		else echo "Configuring OTA Provider no update"; fi \
@@ -79,7 +77,7 @@ define Build/Configure
 		if [ ! -f $(CHIP_BRIDGE_OUT_DIR)/build.ninja ]; then \
 			echo "Configuring Bridge"; \
 			cd $(CHIP_BRIDGE_OUT_DIR) && \
-			$(CONFIGURE_VARS) $(LOCAL_SOURCE_DIR)/scripts/configure --build-env-dir="$(CHIP_BUILD_ENV_DIR)" \
+			$(CONFIGURE_VARS) $(PKG_BUILD_DIR)/scripts/configure --build-env-dir="$(CHIP_BUILD_ENV_DIR)" \
 				--project=examples/bridge-app/rafael --target=$(GNU_TARGET_NAME) --enable-network-layer-ble=no \
 				--enable-openthread=no --enable-wifi=no --mdns='platform' --enable-tracing-support=no; \
 		else echo "Configuring Bridge no update"; fi \
@@ -89,7 +87,7 @@ define Build/Configure
 		if [ ! -f $(CHIP_TOOL_OUT_DIR)/build.ninja ]; then \
 			echo "Configuring Chip Tool"; \
 			cd $(CHIP_TOOL_OUT_DIR) && \
-			$(CONFIGURE_VARS) $(LOCAL_SOURCE_DIR)/scripts/configure --build-env-dir="$(CHIP_BUILD_ENV_DIR)" \
+			$(CONFIGURE_VARS) $(PKG_BUILD_DIR)/scripts/configure --build-env-dir="$(CHIP_BUILD_ENV_DIR)" \
 				--project=examples/chip-tool  --target=$(GNU_TARGET_NAME) --enable-tracing-support=no; \
 		else echo "Configuring Chip Tool no update"; fi \
 	else echo "Configuring Chip Tool is disable"; fi
