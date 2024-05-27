@@ -30,10 +30,14 @@ $ ./scripts/feeds install -a -p chip
 For a minimal configuration, overwrite the `.config` file with the following lines and then run `make defconfig`:
 
 ```
-CONFIG_PACKAGE_wpad-basic-wolfssl=n
-CONFIG_PACKAGE_wpad-openssl=y
-CONFIG_PACKAGE_matter-netman=y
-```
+CONFIG_PACKAGE_chip=y
 
-Note that since the Matter SDK is currently configured to build using OpenSSL, it is recommended to also use OpenSSL as the TLS backend for hostapd / wpad.
+#Enable what you want to build
+#chip-tool
+CONFIG_CHIP_TOOL=y
+#ota provider
+CONFIG_CHIP_OTA_PROVIDER=y
+#Matter bridge
+CONFIG_CHIP_BRIDGE=y
+```
 
