@@ -26,8 +26,9 @@ PKG_BUILD_DEPENDS:=gn/host
 PKG_CONFIG_DEPENDS:= CONFIG_CHIP_OTA_PROVIDER CONFIG_CHIP_BRIDGE CONFIG_CHIP_TOOL
 
 include $(INCLUDE_DIR)/package.mk
-TARGET_CXXFLAGS += -DFATCONFDIR=\"/root\" -DSYSCONFDIR=\"/root\" -DLOCALSTATEDIR=\"/root\" -Wno-format-nonliteral -Wno-unused -Wno-unknown-warning-option -fexceptions
+TARGET_CXXFLAGS += -DFATCONFDIR=\"/root\" -DSYSCONFDIR=\"/root\" -DLOCALSTATEDIR=\"/root\" -Wno-format-nonliteral -Wno-unused -Wno-unknown-warning-option -fexceptions -latomic
 TARGET_CFLAGS += -DFATCONFDIR=\"/root\" -DSYSCONFDIR=\"/root\" -DLOCALSTATEDIR=\"/root\" -Wno-format-nonliteral -Wno-unused -Wno-unknown-warning-option -fexceptions
+TARGET_LDFLAGS += -latomic
 
 # The build environment contains host tools that can be shared between targets
 CHIP_BUILD_ENV_DIR:=$(STAGING_DIR_HOST)/share/chip-build-env
