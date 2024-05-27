@@ -32,12 +32,12 @@ For a minimal configuration, overwrite the `.config` file with the following lin
 ```
 CONFIG_PACKAGE_chip=y
 
-#Enable what you want to build
-#chip-tool
+#
+# Configuration for Matter Host
+#
 CONFIG_CHIP_TOOL=y
-#ota provider
 CONFIG_CHIP_OTA_PROVIDER=y
-#Matter bridge
 CONFIG_CHIP_BRIDGE=y
+# end of Configuration for Matter Host
 ```
 
