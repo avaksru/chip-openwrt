@@ -23,7 +23,8 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y build-essential ccache ecj default-jdk flex bison gawk \
           gcc g++ libz-dev libssl-dev make perl python3.7+ subversion unzip \
-          libncurses5-dev zlib1g-dev libelf-dev
+          libncurses5-dev zlib1g-dev libelf-dev libboost-all-dev
+        sudo pip3 install -r chip-openwrt/requirements.txt || true
 
     - name: Clone OpenWrt repository
       run: |
@@ -39,12 +40,12 @@ jobs:
         cd openwrt
         ./scripts/feeds update -a
         ./scripts/feeds install -a
-        ./scripts/feeds install chip
+        ./scripts/feeds install chip lua gn boost
 
     - name: Create .config file
       run: |
         cd openwrt
-        echo -e "CONFIG_TARGET_imx=y\nCONFIG_TARGET_imx_cortexa7=y\nCONFIG_TARGET_imx_cortexa7_DEVICE_geniatech_gtw360=y\nCONFIG_PACKAGE_cgi-io=y\nCONFIG_PACKAGE_liblucihttp=y\nCONFIG_PACKAGE_liblucihttp-ucode=y\nCONFIG_PACKAGE_luci=y\nCONFIG_PACKAGE_luci-app-firewall=y\nCONFIG_PACKAGE_luci-app-opkg=y\nCONFIG_PACKAGE_luci-base=y\nCONFIG_PACKAGE_luci-light=y\nCONFIG_PACKAGE_luci-mod-admin-full=y\nCONFIG_PACKAGE_luci-mod-network=y\nCONFIG_PACKAGE_luci-mod-status=y\nCONFIG_PACKAGE_luci-mod-system=y\nCONFIG_PACKAGE_luci-proto-ipv6=y\nCONFIG_PACKAGE_luci-proto-ppp=y\nCONFIG_PACKAGE_luci-theme-bootstrap=y\nCONFIG_PACKAGE_rpcd=y\nCONFIG_PACKAGE_rpcd-mod-file=y\nCONFIG_PACKAGE_rpcd-mod-iwinfo=y\nCONFIG_PACKAGE_rpcd-mod-luci=y\nCONFIG_PACKAGE_rpcd-mod-rrdns=y\nCONFIG_PACKAGE_rpcd-mod-ucode=y\nCONFIG_PACKAGE_ucode-mod-html=y\nCONFIG_PACKAGE_ucode-mod-math=y\nCONFIG_PACKAGE_uhttpd=y\nCONFIG_PACKAGE_uhttpd-mod-ubus=y\nCONFIG_ALL=n\nCONFIG_AUTOREMOVE=n\nCONFIG_AUTOREBUILD=n\nCONFIG_MBEDTLS_CCM_C=y\nCONFIG_PACKAGE_matter-netman-mbedtls=m\nCONFIG_PACKAGE_matter-netman-openssl=m\nCONFIG_PACKAGE_mdnsresponder=m\nCONFIG_PACKAGE_openthread-br=m\nCONFIG_PACKAGE_chip=m" > .config
+        echo -e "CONFIG_TARGET_imx=y\nCONFIG_TARGET_imx_cortexa7=y\nCONFIG_TARGET_imx_cortexa7_DEVICE_geniatech_gtw360=y\nCONFIG_PACKAGE_cgi-io=y\nCONFIG_PACKAGE_liblucihttp=y\nCONFIG_PACKAGE_liblucihttp-ucode=y\nCONFIG_PACKAGE_luci=y\nCONFIG_PACKAGE_luci-app-firewall=y\nCONFIG_PACKAGE_luci-app-opkg=y\nCONFIG_PACKAGE_luci-base=y\nCONFIG_PACKAGE_luci-light=y\nCONFIG_PACKAGE_luci-mod-admin-full=y\nCONFIG_PACKAGE_luci-mod-network=y\nCONFIG_PACKAGE_luci-mod-status=y\nCONFIG_PACKAGE_luci-mod-system=y\nCONFIG_PACKAGE_luci-proto-ipv6=y\nCONFIG_PACKAGE_luci-proto-ppp=y\nCONFIG_PACKAGE_luci-theme-bootstrap=y\nCONFIG_PACKAGE_rpcd=y\nCONFIG_PACKAGE_rpcd-mod-file=y\nCONFIG_PACKAGE_rpcd-mod-iwinfo=y\nCONFIG_PACKAGE_rpcd-mod-luci=y\nCONFIG_PACKAGE_rpcd-mod-rrdns=y\nCONFIG_PACKAGE_rpcd-mod-ucode=y\nCONFIG_PACKAGE_ucode-mod-html=y\nCONFIG_PACKAGE_ucode-mod-math=y\nCONFIG_PACKAGE_uhttpd=y\nCONFIG_PACKAGE_uhttpd-mod-ubus=y\nCONFIG_ALL=n\nCONFIG_AUTOREMOVE=n\nCONFIG_AUTOREBUILD=n\nCONFIG_MBEDTLS_CCM_C=y\nCONFIG_PACKAGE_matter-netman-mbedtls=m\nCONFIG_PACKAGE_matter-netman-openssl=m\nCONFIG_PACKAGE_mdnsresponder=m\nCONFIG_PACKAGE_openthread-br=m\nCONFIG_PACKAGE_chip=m\nCONFIG_PACKAGE_lua=m\nCONFIG_PACKAGE_gn=m\nCONFIG_PACKAGE_boost=m\nCONFIG_PACKAGE_boost-system=m" > .config
 
     - name: Configure build
       run: |
@@ -54,9 +55,16 @@ jobs:
     - name: Build chip package
       run: |
         cd openwrt
-        make -j$(nproc) package/chip/compile
+        make -j1 V=s package/chip/compile || { echo "Build failed, uploading logs"; exit 1; }
 
-    - name: Upload artifacts
+    - name: Upload build logs on failure
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-logs
+        path: openwrt/*.log
+
+    - name: Upload chip package artifacts
       uses: actions/upload-artifact@v4
       with:
         name: chip-package
