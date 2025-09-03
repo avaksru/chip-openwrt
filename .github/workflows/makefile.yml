@@ -24,42 +24,8 @@ jobs:
           options: --volume ${{ github.workspace }}/chip-openwrt:/workspace
           shell: bash
           run: |
-            set --
-
-Система: К сожалению, ваш запрос был прерван из-за ограничения на длину ответа. Я продолжу с завершением workflow и объяснением шагов для устранения проблемы.
-
-### Завершённый Workflow
-Ниже приведён полный workflow с улучшенной диагностикой, гибким поиском артефактов и подробным выводом логов.
-
-<xaiArtifact artifact_id="2692e334-ca98-42f1-aeaf-74b6a6282cb6" artifact_version_id="72eac7fb-4623-4c91-96a1-45daff020a9b" title=".github/workflows/build-chip-openwrt.yml" contentType="text/yaml">
-name: Сборка пакета Chip для OpenWrt
-
-on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Клонирование репозитория chip-openwrt
-        uses: actions/checkout@v4
-        with:
-          path: chip-openwrt
-
-      - name: Сборка
-        uses: addnab/docker-run-action@v3
-        with:
-          image: ghcr.io/project-chip/matter-openwrt-build:24.10.1
-          options: --volume ${{ github.workspace }}/chip-openwrt:/workspace
-          shell: bash
-          run: |
             set -x
-            # Проверка содержимого репозитория и фида
+            # Проверка содержимого репозитория
             ls -l /workspace
             echo "src-link chip /workspace" >> feeds.conf
             ./scripts/feeds update chip
@@ -67,8 +33,10 @@ jobs:
             # Проверка содержимого фида chip
             cat feeds/chip.index
             # Создание конфигурации
-            echo -e "CONFIG_TARGET_imx=y\nCONFIG_TARGET_imx_cortexa7=y\nCONFIG_TARGET_imx_cortexa7_DEVICE_geniatech_gtw360=y\nCONFIG_PACKAGE_cgi-io=y\nCONFIG_PACKAGE_liblucihttp=y\nCONFIG_PACKAGE_liblucihttp-ucode=y\nCONFIG_PACKAGE_luci=y\nCONFIG_PACKAGE_luci-app-firewall=y\nCONFIG_PACKAGE_luci-app-opkg=y\nCONFIG_PACKAGE_luci-base=y\nCONFIG_PACKAGE_luci-light=y\nCONFIG_PACKAGE_luci-mod-admin-full=y\nCONFIG_PACKAGE_luci-mod-network=y\nCONFIG_PACKAGE_luci-mod-status=y\nCONFIG_PACKAGE_luci-mod-system=y\nCONFIG_PACKAGE_luci-proto-ipv6=y\nCONFIG_PACKAGE_luci-proto-ppp=y\nCONFIG_PACKAGE_luci-theme-bootstrap=y\nCONFIG_PACKAGE_rpcd=y\nCONFIG_PACKAGE_rpcd-mod-file=y\nCONFIG_PACKAGE_rpcd-mod-iwinfo=y\nCONFIG_PACKAGE_rpcd-mod-luci=y\nCONFIG_PACKAGE_rpcd-mod-rrdns=y\nCONFIG_PACKAGE_rpcd-mod-ucode=y\nCONFIG_PACKAGE_ucode-mod-html=y\nCONFIG_PACKAGE_ucode-mod-math=y\nCONFIG_PACKAGE_uhttpd=y\nCONFIG_PACKAGE_uhttpd-mod-ubus=y\nCONFIG_ALL=n\nCONFIG_AUTOREMOVE=n\nCONFIG_AUTOREBUILD=n\nCONFIG_MBEDTLS_CCM_C=y\nCONFIG_PACKAGE_matter-netman-mbedtls=m\nCONFIG_PACKAGE_matter-netman-openssl=m\nCONFIG_PACKAGE_mdnsresponder=m\nCONFIG_PACKAGE_openthread-br=m\nCONFIG_PACKAGE_chip=m\nCONFIG_PACKAGE_lua=m\nCONFIG_PACKAGE_gn=m\nCONFIG_PACKAGE_boost=m\nCONFIG_PACKAGE_boost-system=m" > .config
+            echo -e "CONFIG_TARGET_imx=y\nCONFIG_TARGET_imx_cortexa7=y\nCONFIG_TARGET_imx_cortexa7_DEVICE_geniatech_gtw360=y\nCONFIG_PACKAGE_cgi-io=y\nCONFIG_PACKAGE_liblucihttp=y\nCONFIG_PACKAGE_liblucihttp-ucode=y\nCONFIG_PACKAGE_luci=y\nCONFIG_PACKAGE_luci-app-firewall=y\nCONFIG_PACKAGE_luci-app-opkg=y\nCONFIG_PACKAGE_luci-base=y\nCONFIG_PACKAGE_luci-light=y\nCONFIG_PACKAGE_luci-mod-admin-full=y\nCONFIG_PACKAGE_luci-mod-network=y\nCONFIG_PACKAGE_luci-mod-status=y\nCONFIG_PACKAGE_luci-mod-system=y\nCONFIG_PACKAGE_luci-proto-ipv6=y\nCONFIG_PACKAGE_luci-proto-ppp=y\nCONFIG_PACKAGE_luci-theme-bootstrap=y\nCONFIG_PACKAGE_rpcd=y\nCONFIG_PACKAGE_rpcd-mod-file=y\nCONFIG_PACKAGE_rpcd-mod-iwinfo=y\nCONFIG_PACKAGE_rpcd-mod-luci=y\nCONFIG_PACKAGE_rpcd-mod-rrdns=y\nCONFIG_PACKAGE_rpcd-mod-ucode=y\nCONFIG_PACKAGE_ucode-mod-html=y\nCONFIG_PACKAGE_ucode-mod-math=y\nCONFIG_PACKAGE_uhttpd=y\nCONFIG_PACKAGE_uhttpd-mod-ubus=y\nCONFIG_ALL=n\nCONFIG_AUTOREMOVE=n\nCONFIG_AUTOREBUILD=n\nCONFIG_MBEDTLS_CCM_C=y\nCONFIG_PACKAGE_matter-netman-mbedtls=m\nCONFIG_PACKAGE_matter-netman-openssl=m\nCONFIG_PACKAGE_mdnsresponder=m\nCONFIG_PACKAGE_openthread-br=m\nCONFIG_PACKAGE_chip=m\nCONFIG_PACKAGE_lua=m\nCONFIG_PACKAGE_gn=m\nCONFIG_PACKAGE_boost=m\nCONFIG_PACKAGE_boost-system=m\nCONFIG_CHIP_OTA_PROVIDER=y\nCONFIG_CHIP_BRIDGE=y\nCONFIG_CHIP_TOOL=y" > .config
             make defconfig
+            # Проверка конфигурации
+            cat .config
             # Сборка пакетов с подробным выводом
             failed=()
             for pkg in lua gn chip; do
@@ -84,8 +52,15 @@ jobs:
               echo "ОШИБКА: Не удалось собрать пакеты: ${failed[*]}"
               exit 2
             fi
+            # Проверка выходных директорий
+            echo "Проверка собранных файлов:"
+            find out/ -type f
+            find bin/ -type f
+            # Принудительная упаковка пакета
+            make -j1 V=s package/chip/install
+            make -j1 V=s package/index
             # Проверка наличия артефактов
-            find . -name "chip*.ipk" || echo "Пакет chip*.ipk не найден"
+            find bin/packages -name "*.ipk" || echo "Пакеты .ipk не найдены"
 
       - name: Загрузка логов при ошибке
         if: failure()
@@ -96,6 +71,7 @@ jobs:
             chip-openwrt/*.log
             chip-openwrt/feeds/chip.index
             chip-openwrt/.config
+            chip-openwrt/out/
 
       - name: Загрузка пакета chip
         uses: actions/upload-artifact@v4
@@ -103,5 +79,5 @@ jobs:
           name: chip-package
           path: |
             chip-openwrt/bin/packages/*/*/chip*.ipk
-            chip-openwrt/bin/packages/*/*/matter*.ipk
+            chip-openwrt/bin/packages/*/*/*.ipk
             chip-openwrt/**/*.ipk
