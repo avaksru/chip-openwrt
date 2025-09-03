@@ -1,0 +1,53 @@
+name: Build OpenWrt Firmware
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up build environment
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential ccache ecj default-jdk flex bison gawk \
+          gcc g++ libz-dev libssl-dev make perl python3.7+ subversion unzip \
+          libncurses5-dev zlib1g-dev libelf-dev
+        sudo pip3 install -r requirements.txt
+
+    - name: Clone OpenWrt repository
+      run: |
+        git clone --single-branch --branch main --depth 1 \
+          https://github.com/avaksru/chip-openwrt.git openwrt
+
+    - name: Update and install feeds
+      run: |
+        cd openwrt
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
+
+    - name: Configure build
+      run: |
+        cd openwrt
+        cp ../.config .config
+        make defconfig
+
+    - name: Build OpenWrt firmware
+      run: |
+        cd openwrt
+        make -j$(nproc)
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: openwrt-firmware
+        path: openwrt/bin/targets/*/*/openwrt-*.bin
