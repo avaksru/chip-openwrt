@@ -1,0 +1,101 @@
+name: Сборка пакета Chip для OpenWrt
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Клонирование репозитория chip-openwrt
+        uses: actions/checkout@v4
+        with:
+          path: chip-openwrt
+
+      - name: Установка зависимостей
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential ccache ecj default-jdk flex bison gawk \
+            gcc g++ libz-dev libssl-dev make perl python3.7+ subversion unzip \
+            libncurses5-dev zlib1g-dev libelf-dev libboost-all-dev git wget
+          sudo pip3 install -r chip-openwrt/requirements.txt || true
+
+      - name: Скачивание и распаковка OpenWrt
+        run: |
+          wget https://github.com/openlumi/openwrt/archive/refs/tags/v24.10.0-20250212.tar.gz
+          tar -xzf v24.10.0-20250212.tar.gz
+          mv openwrt-24.10.0-20250212 openwrt
+
+      - name: Добавление кастомного фида chip
+        run: |
+          echo "src-git chip https://github.com/avaksru/chip-openwrt.git" >> openwrt/feeds.conf.default
+          cat openwrt/feeds.conf.default
+
+      - name: Копирование и применение конфигурации
+        run: |
+          cd openwrt
+          echo -e "CONFIG_TARGET_imx=y\nCONFIG_TARGET_imx_cortexa7=y\nCONFIG_TARGET_imx_cortexa7_DEVICE_geniatech_gtw360=y\nCONFIG_PACKAGE_cgi-io=y\nCONFIG_PACKAGE_liblucihttp=y\nCONFIG_PACKAGE_liblucihttp-ucode=y\nCONFIG_PACKAGE_luci=y\nCONFIG_PACKAGE_luci-app-firewall=y\nCONFIG_PACKAGE_luci-app-opkg=y\nCONFIG_PACKAGE_luci-base=y\nCONFIG_PACKAGE_luci-light=y\nCONFIG_PACKAGE_luci-mod-admin-full=y\nCONFIG_PACKAGE_luci-mod-network=y\nCONFIG_PACKAGE_luci-mod-status=y\nCONFIG_PACKAGE_luci-mod-system=y\nCONFIG_PACKAGE_luci-proto-ipv6=y\nCONFIG_PACKAGE_luci-proto-ppp=y\nCONFIG_PACKAGE_luci-theme-bootstrap=y\nCONFIG_PACKAGE_rpcd=y\nCONFIG_PACKAGE_rpcd-mod-file=y\nCONFIG_PACKAGE_rpcd-mod-iwinfo=y\nCONFIG_PACKAGE_rpcd-mod-luci=y\nCONFIG_PACKAGE_rpcd-mod-rrdns=y\nCONFIG_PACKAGE_rpcd-mod-ucode=y\nCONFIG_PACKAGE_ucode-mod-html=y\nCONFIG_PACKAGE_ucode-mod-math=y\nCONFIG_PACKAGE_uhttpd=y\nCONFIG_PACKAGE_uhttpd-mod-ubus=y\nCONFIG_ALL=n\nCONFIG_AUTOREMOVE=n\nCONFIG_AUTOREBUILD=n\nCONFIG_MBEDTLS_CCM_C=y\nCONFIG_PACKAGE_matter-netman-mbedtls=m\nCONFIG_PACKAGE_matter-netman-openssl=m\nCONFIG_PACKAGE_mdnsresponder=m\nCONFIG_PACKAGE_openthread-br=m\nCONFIG_PACKAGE_chip=y\nCONFIG_PACKAGE_lua=m\nCONFIG_PACKAGE_gn=m\nCONFIG_PACKAGE_boost=m\nCONFIG_PACKAGE_boost-system=m\nCONFIG_CHIP_OTA_PROVIDER=y\nCONFIG_CHIP_BRIDGE=y\nCONFIG_CHIP_TOOL=y" > config_gtw360
+          cp config_gtw360 .config
+          make defconfig
+          cat .config
+
+      - name: Обновление и установка фидов
+        run: |
+          cd openwrt
+          ./scripts/feeds update packages chip
+          ./scripts/feeds install -a -p chip
+          ./scripts/feeds install lua gn boost
+          cat feeds/chip.index
+
+      - name: Сборка пакета chip
+        run: |
+          cd openwrt
+          failed=()
+          for pkg in lua gn chip; do
+            echo "::group::Сборка $pkg"
+            if ! make -j1 V=s "package/$pkg/compile"; then
+              failed+=("$pkg")
+              echo "Повторная сборка $pkg с подробным выводом"
+              make "package/$pkg/compile" V=s || true
+            fi
+            echo "::endgroup::"
+          done
+          if [[ "${#failed[@]}" -gt 0 ]]; then
+            echo "ОШИБКА: Не удалось собрать пакеты: ${failed[*]}"
+            exit 2
+          fi
+          # Установка и упаковка пакета
+          make -j1 V=s package/chip/install
+          make -j1 V=s package/index
+          # Проверка результатов
+          echo "Собранные файлы в out/:"
+          find out/ -type f
+          echo "Собранные файлы в bin/:"
+          find bin/ -type f
+          echo "Пакеты .ipk:"
+          find bin/packages -name "*.ipk" || echo "Пакеты .ipk не найдены"
+
+      - name: Загрузка логов при ошибке
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: |
+            openwrt/*.log
+            openwrt/feeds/chip.index
+            openwrt/.config
+            openwrt/out/
+
+      - name: Загрузка пакета chip
+        uses: actions/upload-artifact@v4
+        with:
+          name: chip-package
+          path: |
+            openwrt/bin/packages/*/*/chip*.ipk
+            openwrt/bin/packages/*/*/*.ipk
+            openwrt/**/*.ipk
