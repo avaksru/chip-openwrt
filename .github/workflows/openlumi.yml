@@ -22,7 +22,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential ccache ecj default-jdk flex bison gawk \
             gcc g++ libz-dev libssl-dev make perl python3.7+ subversion unzip \
-            libncurses5-dev zlib1g-dev libelf-dev libboost-all-dev git wget
+            libncurses5-dev zlib1g-dev libelf-dev libboost-all-dev git wget \
+            libpam0g-dev libev-dev liblzma-dev libsnmp-dev
           sudo pip3 install -r chip-openwrt/requirements.txt || true
 
       - name: Скачивание и распаковка OpenWrt
@@ -31,10 +32,15 @@ jobs:
           tar -xzf v24.10.0-20250212.tar.gz
           mv openwrt-24.10.0-20250212 openwrt
 
-      - name: Добавление кастомного фида chip
+      - name: Настройка фидов
         run: |
-          echo "src-git chip https://github.com/avaksru/chip-openwrt.git" >> openwrt/feeds.conf.default
-          cat openwrt/feeds.conf.default
+          cd openwrt
+          echo "src-git chip https://github.com/avaksru/chip-openwrt.git" >> feeds.conf.default
+          echo "src-git packages https://git.openwrt.org/feed/packages.git" >> feeds.conf.default
+          echo "src-git luci https://git.openwrt.org/feed/luci.git" >> feeds.conf.default
+          echo "src-git routing https://git.openwrt.org/feed/routing.git" >> feeds.conf.default
+          echo "src-git telephony https://git.openwrt.org/feed/telephony.git" >> feeds.conf.default
+          cat feeds.conf.default
 
       - name: Копирование и применение конфигурации
         run: |
@@ -47,10 +53,12 @@ jobs:
       - name: Обновление и установка фидов
         run: |
           cd openwrt
-          ./scripts/feeds update packages chip
+          ./scripts/feeds update packages chip luci routing telephony
           ./scripts/feeds install -a -p chip
-          ./scripts/feeds install lua gn boost
+          ./scripts/feeds install -a -p packages
+          ./scripts/feeds install lua gn boost glib2 libavahi-client
           cat feeds/chip.index
+          cat feeds/packages.index
 
       - name: Сборка пакета chip
         run: |
@@ -58,10 +66,10 @@ jobs:
           failed=()
           for pkg in lua gn chip; do
             echo "::group::Сборка $pkg"
-            if ! make -j1 V=s "package/$pkg/compile"; then
+            if ! make -j1 V=sc "package/$pkg/compile"; then
               failed+=("$pkg")
               echo "Повторная сборка $pkg с подробным выводом"
-              make "package/$pkg/compile" V=s || true
+              make "package/$pkg/compile" V=sc || true
             fi
             echo "::endgroup::"
           done
@@ -70,13 +78,13 @@ jobs:
             exit 2
           fi
           # Установка и упаковка пакета
-          make -j1 V=s package/chip/install
-          make -j1 V=s package/index
+          make -j1 V=sc package/chip/install
+          make -j1 V=sc package/index
           # Проверка результатов
           echo "Собранные файлы в out/:"
-          find out/ -type f
+          find out/ -type f || echo "Файлы в out/ не найдены"
           echo "Собранные файлы в bin/:"
-          find bin/ -type f
+          find bin/ -type f || echo "Файлы в bin/ не найдены"
           echo "Пакеты .ipk:"
           find bin/packages -name "*.ipk" || echo "Пакеты .ipk не найдены"
 
@@ -88,6 +96,7 @@ jobs:
           path: |
             openwrt/*.log
             openwrt/feeds/chip.index
+            openwrt/feeds/packages.index
             openwrt/.config
             openwrt/out/
 
