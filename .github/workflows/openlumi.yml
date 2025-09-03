@@ -35,11 +35,20 @@ jobs:
       - name: Настройка фидов
         run: |
           cd openwrt
+          # Проверка и добавление фидов, избегая дублирования
+          if ! grep -q "src-git packages" feeds.conf.default; then
+            echo "src-git packages https://git.openwrt.org/feed/packages.git" >> feeds.conf.default
+          fi
+          if ! grep -q "src-git luci" feeds.conf.default; then
+            echo "src-git luci https://git.openwrt.org/feed/luci.git" >> feeds.conf.default
+          fi
+          if ! grep -q "src-git routing" feeds.conf.default; then
+            echo "src-git routing https://git.openwrt.org/feed/routing.git" >> feeds.conf.default
+          fi
+          if ! grep -q "src-git telephony" feeds.conf.default; then
+            echo "src-git telephony https://git.openwrt.org/feed/telephony.git" >> feeds.conf.default
+          fi
           echo "src-git chip https://github.com/avaksru/chip-openwrt.git" >> feeds.conf.default
-          echo "src-git packages https://git.openwrt.org/feed/packages.git" >> feeds.conf.default
-          echo "src-git luci https://git.openwrt.org/feed/luci.git" >> feeds.conf.default
-          echo "src-git routing https://git.openwrt.org/feed/routing.git" >> feeds.conf.default
-          echo "src-git telephony https://git.openwrt.org/feed/telephony.git" >> feeds.conf.default
           cat feeds.conf.default
 
       - name: Копирование и применение конфигурации
