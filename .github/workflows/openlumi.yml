@@ -61,7 +61,7 @@ jobs:
       - name: Add custom feed
         run: |
           cd openwrt
-          echo "src-git chip https://github.com/avaksru/matter-openwrt.git" >> feeds.conf.default
+          echo "src-git chip https://github.com/avaksru/chip-openwrt.git" >> feeds.conf.default
           cat feeds.conf.default  # Вывод конфигурации feeds для отладки
 
       - name: Update and install feeds
