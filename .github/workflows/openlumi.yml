@@ -4,6 +4,8 @@ on:
   workflow_dispatch:
   push:
     branches: [ main ]
+  schedule:
+    - cron: '0 0 * * 0'
 
 env:
   OPENWRT_VERSION: v24.10.0-20250212
@@ -13,54 +15,83 @@ jobs:
     runs-on: ubuntu-22.04
     
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
     
-    - name: Install dependencies
+    - name: Set up environment
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential ccache libelf-dev libncurses5-dev \
-        libssl-dev python3 python3-dev unzip wget pkg-config libdbus-1-dev \
-        libglib2.0-dev ninja-build git gcc g++ make
+        sudo apt-get install -y build-essential ccache ecj fastjar file g++ gawk \
+        gettext git java-propose-classpath libelf-dev libncurses5-dev \
+        libncursesw5-dev libssl-dev python3 python3-dev python3-venv unzip wget \
+        python3-setuptools rsync subversion swig time xsltproc zlib1g-dev \
+        pkg-config libdbus-1-dev libglib2.0-dev ninja-build
+        
+        # Создаем symlink для python если нужно
+        if ! command -v python &> /dev/null; then
+          ln -s /usr/bin/python3 /usr/bin/python
+        fi
     
-    - name: Download OpenWrt
+    - name: Download and extract OpenWrt
       run: |
         wget https://github.com/openlumi/openwrt/archive/refs/tags/${{ env.OPENWRT_VERSION }}.tar.gz
         tar xvzf ${{ env.OPENWRT_VERSION }}.tar.gz
         mv openwrt-24.10.0-20250212 openwrt
     
-    - name: Setup feeds and config
+    - name: Configure feeds
       run: |
         cd openwrt
         echo 'src-git chip https://github.com/avaksru/matter-openwrt.git' >> feeds.conf.default
-        
-        # Добавляем Matter конфигурацию
+    
+    - name: Add Matter configuration to existing config
+      run: |
+        cd openwrt
+        # Проверяем существует ли файл config_gtw360
         if [ -f config_gtw360 ]; then
-          echo -e "\n# Matter configuration" >> config_gtw360
-          echo "CONFIG_PACKAGE_chip=y" >> config_gtw360
+          echo "Добавляем Matter конфигурацию к существующему config_gtw360"
+          # Проверяем, не добавлена ли уже конфигурация
+          if ! grep -q "CONFIG_PACKAGE_chip=y" config_gtw360; then
+            echo "" >> config_gtw360
+            echo "CONFIG_PACKAGE_chip=y" >> config_gtw360
+            echo "" >> config_gtw360
+            echo "#" >> config_gtw360
+            echo "# Configuration for Matter Host" >> config_gtw360
+            echo "#" >> config_gtw360
+            echo "CONFIG_CHIP_TOOL=y" >> config_gtw360
+            echo "CONFIG_CHIP_OTA_PROVIDER=y" >> config_gtw360
+            echo "CONFIG_CHIP_BRIDGE=y" >> config_gtw360
+            echo "# end of Configuration for Matter Host" >> config_gtw360
+          fi
+        else
+          echo "Создаем новый config_gtw360 с Matter конфигурацией"
+          echo "CONFIG_PACKAGE_chip=y" > config_gtw360
+          echo "" >> config_gtw360
+          echo "#" >> config_gtw360
+          echo "# Configuration for Matter Host" >> config_gtw360
+          echo "#" >> config_gtw360
           echo "CONFIG_CHIP_TOOL=y" >> config_gtw360
           echo "CONFIG_CHIP_OTA_PROVIDER=y" >> config_gtw360
           echo "CONFIG_CHIP_BRIDGE=y" >> config_gtw360
-        else
-          cat > config_gtw360 << 'EOF'
-CONFIG_PACKAGE_chip=y
-CONFIG_CHIP_TOOL=y
-CONFIG_CHIP_OTA_PROVIDER=y
-CONFIG_CHIP_BRIDGE=y
-EOF
+          echo "# end of Configuration for Matter Host" >> config_gtw360
         fi
-        
-        ./scripts/feeds update -a
-        ./scripts/feeds install -a
-        cp config_gtw360 .config
-        make defconfig
     
-    - name: Build chip package
+    - name: Build OpenWrt with Matter
       run: |
         cd openwrt
+        cp config_gtw360 .config
+        make -j$(nproc) defconfig
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
         make -j$(nproc) package/chip/compile
     
-    - name: Upload artifacts
+    - name: Archive build artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: chip-packages
+        name: openwrt-chip-packages
         path: openwrt/bin/packages/*/chip/*.ipk
+        retention-days: 7
+    
+    - name: Show build summary
+      run: |
+        echo "Build completed!"
+        ls -la openwrt/bin/packages/*/chip/ 2>/dev/null || echo "No chip packages found"
