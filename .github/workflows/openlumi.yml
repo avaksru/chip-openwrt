@@ -1,119 +1,123 @@
-name: Сборка пакета Chip для OpenWrt
+name: Build OpenWrt with Matter support
 
 on:
+  workflow_dispatch:
   push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+    branches: [ main ]
+  schedule:
+    - cron: '0 0 * * 0'  # Run weekly
+
+env:
+  OPENWRT_VERSION: v24.10.0-20250212
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  build-openwrt:
+    runs-on: ubuntu-22.04
+    
     steps:
-      - name: Клонирование репозитория chip-openwrt
-        uses: actions/checkout@v4
-        with:
-          path: chip-openwrt
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Set up environment
+      run: |
+        sudo apt-get update && sudo apt-get upgrade -y
+        sudo apt-get install -y build-essential ccache ecj fastjar file g++ gawk \
+          gettext git java-propose-classpath libelf-dev libncurses5-dev \
+          libncursesw5-dev libssl-dev python python2.7-dev python3 unzip wget \
+          python3-distutils python3-setuptools python3-dev rsync subversion \
+          swig time xsltproc zlib1g-dev \
+          pkg-config libdbus-1-dev libglib2.0-dev ninja-build python3-venv
+        
+        # Проверяем установку ninja
+        which ninja || which ninja-build
+        ninja --version || ninja-build --version
+    
+    - name: Download and extract OpenWrt
+      run: |
+        wget https://github.com/openlumi/openwrt/archive/refs/tags/${{ env.OPENWRT_VERSION }}.tar.gz
+        tar xvzf ${{ env.OPENWRT_VERSION }}.tar.gz
+        mv openwrt-24.10.0-20250212 openwrt
+    
+    - name: Configure feeds
+      run: |
+        cd openwrt
+        echo 'src-git chip https://github.com/avaksru/matter-openwrt.git' >> feeds.conf.default
+    
+    - name: Add Matter configuration to existing config
+      run: |
+        cd openwrt
+        # Проверяем существует ли файл config_gtw360
+        if [ -f config_gtw360 ]; then
+          echo "Добавляем Matter конфигурацию к существующему config_gtw360"
+          # Проверяем, не добавлена ли уже конфигурация
+          if ! grep -q "CONFIG_PACKAGE_chip=y" config_gtw360; then
+            cat >> config_gtw360 << 'EOF'
+          
+CONFIG_PACKAGE_chip=y
 
-      - name: Установка зависимостей
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential ccache ecj default-jdk flex bison gawk \
-            gcc g++ libz-dev libssl-dev make perl python3.7+ subversion unzip \
-            libncurses5-dev zlib1g-dev libelf-dev libboost-all-dev git wget \
-            libpam0g-dev libev-dev liblzma-dev libsnmp-dev
-          sudo pip3 install -r chip-openwrt/requirements.txt || true
-
-      - name: Скачивание и распаковка OpenWrt
-        run: |
-          wget https://github.com/openlumi/openwrt/archive/refs/tags/v24.10.0-20250212.tar.gz
-          tar -xzf v24.10.0-20250212.tar.gz
-          mv openwrt-24.10.0-20250212 openwrt
-
-      - name: Настройка фидов
-        run: |
-          cd openwrt
-          # Проверка и добавление фидов, избегая дублирования
-          if ! grep -q "src-git packages" feeds.conf.default; then
-            echo "src-git packages https://git.openwrt.org/feed/packages.git" >> feeds.conf.default
+#
+# Configuration for Matter Host
+#
+CONFIG_CHIP_TOOL=y
+CONFIG_CHIP_OTA_PROVIDER=y
+CONFIG_CHIP_BRIDGE=y
+# end of Configuration for Matter Host
+EOF
+          else
+            echo "Matter конфигурация уже присутствует в config_gtw360"
           fi
-          if ! grep -q "src-git luci" feeds.conf.default; then
-            echo "src-git luci https://git.openwrt.org/feed/luci.git" >> feeds.conf.default
-          fi
-          if ! grep -q "src-git routing" feeds.conf.default; then
-            echo "src-git routing https://git.openwrt.org/feed/routing.git" >> feeds.conf.default
-          fi
-          if ! grep -q "src-git telephony" feeds.conf.default; then
-            echo "src-git telephony https://git.openwrt.org/feed/telephony.git" >> feeds.conf.default
-          fi
-          echo "src-git chip https://github.com/avaksru/chip-openwrt.git" >> feeds.conf.default
-          cat feeds.conf.default
+        else
+          echo "Создаем новый config_gtw360 с Matter конфигурацией"
+          cat > config_gtw360 << 'EOF'
+CONFIG_PACKAGE_chip=y
 
-      - name: Копирование и применение конфигурации
-        run: |
-          cd openwrt
-          echo -e "CONFIG_TARGET_imx=y\nCONFIG_TARGET_imx_cortexa7=y\nCONFIG_TARGET_imx_cortexa7_DEVICE_geniatech_gtw360=y\nCONFIG_PACKAGE_cgi-io=y\nCONFIG_PACKAGE_liblucihttp=y\nCONFIG_PACKAGE_liblucihttp-ucode=y\nCONFIG_PACKAGE_luci=y\nCONFIG_PACKAGE_luci-app-firewall=y\nCONFIG_PACKAGE_luci-app-opkg=y\nCONFIG_PACKAGE_luci-base=y\nCONFIG_PACKAGE_luci-light=y\nCONFIG_PACKAGE_luci-mod-admin-full=y\nCONFIG_PACKAGE_luci-mod-network=y\nCONFIG_PACKAGE_luci-mod-status=y\nCONFIG_PACKAGE_luci-mod-system=y\nCONFIG_PACKAGE_luci-proto-ipv6=y\nCONFIG_PACKAGE_luci-proto-ppp=y\nCONFIG_PACKAGE_luci-theme-bootstrap=y\nCONFIG_PACKAGE_rpcd=y\nCONFIG_PACKAGE_rpcd-mod-file=y\nCONFIG_PACKAGE_rpcd-mod-iwinfo=y\nCONFIG_PACKAGE_rpcd-mod-luci=y\nCONFIG_PACKAGE_rpcd-mod-rrdns=y\nCONFIG_PACKAGE_rpcd-mod-ucode=y\nCONFIG_PACKAGE_ucode-mod-html=y\nCONFIG_PACKAGE_ucode-mod-math=y\nCONFIG_PACKAGE_uhttpd=y\nCONFIG_PACKAGE_uhttpd-mod-ubus=y\nCONFIG_ALL=n\nCONFIG_AUTOREMOVE=n\nCONFIG_AUTOREBUILD=n\nCONFIG_MBEDTLS_CCM_C=y\nCONFIG_PACKAGE_matter-netman-mbedtls=m\nCONFIG_PACKAGE_matter-netman-openssl=m\nCONFIG_PACKAGE_mdnsresponder=m\nCONFIG_PACKAGE_openthread-br=m\nCONFIG_PACKAGE_chip=y\nCONFIG_PACKAGE_lua=m\nCONFIG_PACKAGE_gn=m\nCONFIG_PACKAGE_boost=m\nCONFIG_PACKAGE_boost-system=m\nCONFIG_CHIP_OTA_PROVIDER=y\nCONFIG_CHIP_BRIDGE=y\nCONFIG_CHIP_TOOL=y" > config_gtw360
-          cp config_gtw360 .config
-          make defconfig
-          cat .config
-
-      - name: Обновление и установка фидов
-        run: |
-          cd openwrt
-          ./scripts/feeds update packages chip luci routing telephony
-          ./scripts/feeds install -a -p chip
-          ./scripts/feeds install -a -p packages
-          ./scripts/feeds install lua gn boost glib2 libavahi-client
-          cat feeds/chip.index
-          cat feeds/packages.index
-
-      - name: Сборка пакета chip
-        run: |
-          cd openwrt
-          failed=()
-          for pkg in lua gn chip; do
-            echo "::group::Сборка $pkg"
-            if ! make -j1 V=sc "package/$pkg/compile"; then
-              failed+=("$pkg")
-              echo "Повторная сборка $pkg с подробным выводом"
-              make "package/$pkg/compile" V=sc || true
-            fi
-            echo "::endgroup::"
-          done
-          if [[ "${#failed[@]}" -gt 0 ]]; then
-            echo "ОШИБКА: Не удалось собрать пакеты: ${failed[*]}"
-            exit 2
-          fi
-          # Установка и упаковка пакета
-          make -j1 V=sc package/chip/install
-          make -j1 V=sc package/index
-          # Проверка результатов
-          echo "Собранные файлы в out/:"
-          find out/ -type f || echo "Файлы в out/ не найдены"
-          echo "Собранные файлы в bin/:"
-          find bin/ -type f || echo "Файлы в bin/ не найдены"
-          echo "Пакеты .ipk:"
-          find bin/packages -name "*.ipk" || echo "Пакеты .ipk не найдены"
-
-      - name: Загрузка логов при ошибке
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-logs
-          path: |
-            openwrt/*.log
-            openwrt/feeds/chip.index
-            openwrt/feeds/packages.index
-            openwrt/.config
-            openwrt/out/
-
-      - name: Загрузка пакета chip
-        uses: actions/upload-artifact@v4
-        with:
-          name: chip-package
-          path: |
-            openwrt/bin/packages/*/*/chip*.ipk
-            openwrt/bin/packages/*/*/*.ipk
-            openwrt/**/*.ipk
+#
+# Configuration for Matter Host
+#
+CONFIG_CHIP_TOOL=y
+CONFIG_CHIP_OTA_PROVIDER=y
+CONFIG_CHIP_BRIDGE=y
+# end of Configuration for Matter Host
+EOF
+        fi
+    
+    - name: Build OpenWrt with Matter
+      run: |
+        cd openwrt
+        
+        # Сначала обновляем feeds и устанавливаем базовые пакеты
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
+        
+        # Копируем конфиг и настраиваем
+        cp config_gtw360 .config
+        make -j$(nproc) defconfig
+        
+        # Сначала собираем host tools, особенно ninja
+        echo "Собираем host tools..."
+        make -j$(nproc) tools/install V=s
+        make -j$(nproc) toolchain/install V=s
+        
+        # Проверяем наличие ninja в staging_dir
+        echo "Проверяем наличие ninja..."
+        ls -la staging_dir/host/bin/ || true
+        which ninja || which ninja-build || find . -name "ninja" -type f | head -5
+        
+        # Теперь собираем chip package
+        echo "Собираем chip package..."
+        make -j$(nproc) package/feeds/chip/gn/compile V=s
+        make -j$(nproc) package/chip/compile V=s
+    
+    - name: Archive build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: openwrt-chip-packages
+        path: openwrt/bin/packages/*/chip/*.ipk
+        retention-days: 7
+    
+    - name: Show build summary
+      run: |
+        echo "Build completed successfully!"
+        echo "Chip packages are available in the artifacts"
+        echo "Config file content:"
+        cat openwrt/config_gtw360 | tail -20
