@@ -1,123 +1,72 @@
-name: Build OpenWrt with Matter support
+name: Build OpenWrt with Matter Host
 
 on:
-  workflow_dispatch:
   push:
-    branches: [ main ]
-  schedule:
-    - cron: '0 0 * * 0'  # Run weekly
-
-env:
-  OPENWRT_VERSION: v24.10.0-20250212
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
 
 jobs:
-  build-openwrt:
-    runs-on: ubuntu-22.04
-    
+  build:
+    runs-on: ubuntu-latest
+
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-    
-    - name: Set up environment
-      run: |
-        sudo apt-get update && sudo apt-get upgrade -y
-        sudo apt-get install -y build-essential ccache ecj fastjar file g++ gawk \
-          gettext git java-propose-classpath libelf-dev libncurses5-dev \
-          libncursesw5-dev libssl-dev python python2.7-dev python3 unzip wget \
-          python3-distutils python3-setuptools python3-dev rsync subversion \
-          swig time xsltproc zlib1g-dev \
-          pkg-config libdbus-1-dev libglib2.0-dev ninja-build python3-venv
-        
-        # Проверяем установку ninja
-        which ninja || which ninja-build
-        ninja --version || ninja-build --version
-    
-    - name: Download and extract OpenWrt
-      run: |
-        wget https://github.com/openlumi/openwrt/archive/refs/tags/${{ env.OPENWRT_VERSION }}.tar.gz
-        tar xvzf ${{ env.OPENWRT_VERSION }}.tar.gz
-        mv openwrt-24.10.0-20250212 openwrt
-    
-    - name: Configure feeds
-      run: |
-        cd openwrt
-        echo 'src-git chip https://github.com/avaksru/matter-openwrt.git' >> feeds.conf.default
-    
-    - name: Add Matter configuration to existing config
-      run: |
-        cd openwrt
-        # Проверяем существует ли файл config_gtw360
-        if [ -f config_gtw360 ]; then
-          echo "Добавляем Matter конфигурацию к существующему config_gtw360"
-          # Проверяем, не добавлена ли уже конфигурация
-          if ! grep -q "CONFIG_PACKAGE_chip=y" config_gtw360; then
-            cat >> config_gtw360 << 'EOF'
-          
-CONFIG_PACKAGE_chip=y
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-#
-# Configuration for Matter Host
-#
-CONFIG_CHIP_TOOL=y
-CONFIG_CHIP_OTA_PROVIDER=y
-CONFIG_CHIP_BRIDGE=y
-# end of Configuration for Matter Host
-EOF
-          else
-            echo "Matter конфигурация уже присутствует в config_gtw360"
-          fi
-        else
-          echo "Создаем новый config_gtw360 с Matter конфигурацией"
-          cat > config_gtw360 << 'EOF'
-CONFIG_PACKAGE_chip=y
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get upgrade -y
+          sudo apt-get install -y \
+            build-essential ccache ecj fastjar file g++ gawk \
+            gettext git java-propose-classpath libelf-dev libncurses5-dev \
+            libncursesw5-dev libssl-dev python python2.7-dev python3 unzip wget \
+            python3-distutils python3-setuptools python3-dev rsync subversion \
+            gcc g++ pkg-config libdbus-1-dev libglib2.0-dev ninja-build python3-venv \
+            swig time xsltproc zlib1g-dev
 
-#
-# Configuration for Matter Host
-#
-CONFIG_CHIP_TOOL=y
-CONFIG_CHIP_OTA_PROVIDER=y
-CONFIG_CHIP_BRIDGE=y
-# end of Configuration for Matter Host
-EOF
-        fi
-    
-    - name: Build OpenWrt with Matter
-      run: |
-        cd openwrt
-        
-        # Сначала обновляем feeds и устанавливаем базовые пакеты
-        ./scripts/feeds update -a
-        ./scripts/feeds install -a
-        
-        # Копируем конфиг и настраиваем
-        cp config_gtw360 .config
-        make -j$(nproc) defconfig
-        
-        # Сначала собираем host tools, особенно ninja
-        echo "Собираем host tools..."
-        make -j$(nproc) tools/install V=s
-        make -j$(nproc) toolchain/install V=s
-        
-        # Проверяем наличие ninja в staging_dir
-        echo "Проверяем наличие ninja..."
-        ls -la staging_dir/host/bin/ || true
-        which ninja || which ninja-build || find . -name "ninja" -type f | head -5
-        
-        # Теперь собираем chip package
-        echo "Собираем chip package..."
-        make -j$(nproc) package/feeds/chip/gn/compile V=s
-        make -j$(nproc) package/chip/compile V=s
-    
-    - name: Archive build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: openwrt-chip-packages
-        path: openwrt/bin/packages/*/chip/*.ipk
-        retention-days: 7
-    
-    - name: Show build summary
-      run: |
-        echo "Build completed successfully!"
-        echo "Chip packages are available in the artifacts"
-        echo "Config file content:"
-        cat openwrt/config_gtw360 | tail -20
+      - name: Download and extract OpenWrt
+        run: |
+          wget https://github.com/openlumi/openwrt/archive/refs/tags/v24.10.0-20250212.tar.gz
+          tar xvzf v24.10.0-20250212.tar.gz
+          mv openwrt-24.10.0-20250212 openwrt
+          cd openwrt
+
+      - name: Configure OpenWrt for Matter Host
+        run: |
+          cd openwrt
+          cat << EOF > config_gtw360
+          CONFIG_PACKAGE_chip=y
+
+          #
+          # Configuration for Matter Host
+          #
+          CONFIG_CHIP_TOOL=y
+          CONFIG_CHIP_OTA_PROVIDER=y
+          CONFIG_CHIP_BRIDGE=y
+          # end of Configuration for Matter Host
+          EOF
+          cp config_gtw360 .config
+          make -j$(nproc) defconfig
+
+      - name: Add custom feed and update
+        run: |
+          cd openwrt
+          echo "src-git chip https://github.com/avaksru/matter-openwrt.git" >> feeds.conf.default
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Compile chip package
+        run: |
+          cd openwrt
+          make -j$(nproc) package/chip/compile
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: openwrt-chip-package
+          path: openwrt/bin/packages/*/*/chip/*.ipk
