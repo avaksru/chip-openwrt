@@ -11,7 +11,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout repository
@@ -24,10 +24,14 @@ jobs:
           sudo apt-get install -y \
             build-essential ccache ecj fastjar file g++ gawk \
             gettext git java-propose-classpath libelf-dev libncurses5-dev \
-            libncursesw5-dev libssl-dev python python2.7-dev python3 unzip wget \
-            python3-distutils python3-setuptools python3-dev rsync subversion \
-            gcc g++ pkg-config libdbus-1-dev libglib2.0-dev ninja-build python3-venv \
-            swig time xsltproc zlib1g-dev
+            libncursesw5-dev libssl-dev python3 python3-dev python3-setuptools \
+            unzip wget rsync subversion gcc g++ pkg-config libdbus-1-dev \
+            libglib2.0-dev ninja-build python3-venv swig time xsltproc zlib1g-dev \
+            python-is-python3
+          # Установка Python 2.7, если требуется
+          sudo add-apt-repository ppa:deadsnakes/ppa -y
+          sudo apt-get update
+          sudo apt-get install -y python2.7 python2.7-dev
 
       - name: Download and extract OpenWrt
         run: |
@@ -35,7 +39,7 @@ jobs:
           tar xvzf v24.10.0-20250212.tar.gz
           mv openwrt-24.10.0-20250212 openwrt
           cd openwrt
-          pwd  # Log current directory for debugging
+          pwd  # Вывод текущей директории для отладки
 
       - name: Configure OpenWrt for Matter Host
         run: |
@@ -58,23 +62,23 @@ jobs:
         run: |
           cd openwrt
           echo "src-git chip https://github.com/avaksru/matter-openwrt.git" >> feeds.conf.default
-          cat feeds.conf.default  # Log feed configuration for debugging
+          cat feeds.conf.default  # Вывод конфигурации feeds для отладки
 
       - name: Update and install feeds
         run: |
           cd openwrt
-          ./scripts/feeds update -a || { echo "Feed update failed"; exit 1; }
-          ls -la feeds/  # Log feeds directory contents for debugging
+          ./scripts/feeds update -a || { echo "Ошибка обновления feeds"; exit 1; }
+          ls -la feeds/  # Вывод содержимого директории feeds для отладки
           if [ ! -d "feeds/chip" ]; then
-            echo "Error: feeds/chip directory not found"
+            echo "Ошибка: директория feeds/chip не найдена"
             exit 1
           fi
-          ./scripts/feeds install -a || { echo "Feed install failed"; exit 1; }
+          ./scripts/feeds install -a || { echo "Ошибка установки feeds"; exit 1; }
 
       - name: Compile chip package
         run: |
           cd openwrt
-          make -j$(nproc) package/chip/compile V=s || { echo "Compilation failed"; exit 1; }
+          make -j$(nproc) package/chip/compile V=s || { echo "Ошибка компиляции пакета chip"; exit 1; }
 
       - name: Upload artifacts
         if: success()
